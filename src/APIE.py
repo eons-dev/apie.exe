@@ -1,14 +1,18 @@
 import os
 import logging
 import eons as e
+from flask import Flask
 from .Exceptions import *
 
-class EBBS(e.Executor):
+class APIE(e.Executor):
 
     def __init__(this):
         super().__init__(name="Application Program Interface with eons", descriptionStr="A readily extensible take on APIs.")
 
         # this.RegisterDirectory("ebbs")
+
+        this.optionalKWArgs['host'] = "0.0.0.0"
+        this.optionalKWArgs['port'] = 80
 
 
     #Configure class defaults.
@@ -26,13 +30,20 @@ class EBBS(e.Executor):
 
 
     #Override of eons.Executor method. See that class for details
-    def AddArgs(this):
-        super().AddArgs()
-        this.argparser.add_argument('-h','--host', type = str, metavar = '127.0.0.1', default = '0.0.0.0', help = 'host ip to accept connections through', dest = 'host')
-        this.argparser.add_argument('-p','--port', type = str, metavar = '80', help = 'port to run on', dest = 'port')
-
-
-    #Override of eons.Executor method. See that class for details
     def UserFunction(this):
         super().UserFunction()
+        this.flask = Flask(this.name)
+
+        @this.flask.route("/")
+        def test():
+            return "<p>Hello, World!</p>"
+
+        options = {}
+        options['host'] = this.host
+        options['port'] = this.port
+
+        if (this.args.verbose > 0):
+            options['debug'] = True
+            options['use_reloader'] = False
         
+        this.flask.run(**options)
