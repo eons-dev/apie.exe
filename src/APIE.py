@@ -14,6 +14,14 @@ class APIE(e.Executor):
         this.optionalKWArgs['host'] = "0.0.0.0"
         this.optionalKWArgs['port'] = 80
 
+        this.supportedMethods = [
+            'POST',
+            'GET',
+            'PUT',
+            'DELETE',
+            'PATCH'
+        ]
+
 
     #Configure class defaults.
     #Override of eons.Executor method. See that class for details
@@ -34,9 +42,11 @@ class APIE(e.Executor):
         super().UserFunction()
         this.flask = Flask(this.name)
 
-        @this.flask.route("/")
-        def test():
-            return "<p>Hello, World!</p>"
+        @this.flask.route("/", defaults={"path": ""}, methods = this.supportedMethods)
+        @this.flask.route("/<string:path>", methods = this.supportedMethods)
+        @this.flask.route("/<path:path>", methods = this.supportedMethods)
+        def test(path):
+            return f"<p>Hello, {path}!</p>"
 
         options = {}
         options['host'] = this.host
