@@ -1,10 +1,10 @@
+import eons
 import os
 import logging
 import shutil
 import jsonpickle
 from pathlib import Path
-from flask import request
-import eons as e
+from flask import request, Response
 from .Exceptions import *
 
 # Endpoints are what is run when a given request is successfully authenticated.
@@ -17,23 +17,48 @@ from .Exceptions import *
 # For example, you might have 3 Endpoints: "package", "photo", and "upload"; both package and photo set a member called "file_data"; upload Fetches "file_data" and puts it somewhere; you can thus use upload with either predecessor (e.g. .../package/upload and .../photo/upload).
 # What is returned by an Endpoint is the very last Endpoint's return value. All intermediate values are skipped (so you can throw errors if calling things like .../package without a further action).
 # NOTE: Endpoints should be published as api_s (i.e. projectType="api")
-class Endpoint(e.UserFunctor):
-    def __init__(this, name=e.INVALID_NAME()):
+class Endpoint(eons.UserFunctor):
+    def __init__(this, name=eons.INVALID_NAME()):
         super().__init__(name)
 
         this.enableRollback = False
 
-        this.requiredKWArgs.append('request')
+        this.supportedMethods = [
+            'POST',
+            'GET',
+            'PUT',
+            'DELETE',
+            'PATCH'
+        ]
+
+        # Only the items listed here will be allowed as next Endpoints.
+        # If this list is empty, all endpoints are allowed.
+        # When creating your endpoints, make sure to adjust this!
+        # Also, please keep 'help'. It helps.
+        this.allowedNext = ['help']
+
+        # If you'd like to only check for your values in certain places, adjust this list.
+        # These will call the corresponding methods as described in the docs: https://flask.palletsprojects.com/en/2.2.x/api/#flask.Request.args
+        this.fetchFromRequest = [
+            'args',
+            'form',
+            'json',
+            'files'
+        ]
         
         this.optionalKWArgs['next'] = []
-        this.optionalKWArgs['cachable'] = False
-        this.optionalKWArgs['mode'] = 'json' #or html
+        this.optionalKWArgs['mime'] = 'application/json'
 
-        #this.response is returned by UserFunction().
-        this.response = {}
-        this.response['content_data'] = {}
-        this.response['content_string'] = ""
-        this.response['code'] = 200
+        # If the client can store the result of *this locally, let them know.
+        # When querying this, it is best to use the IsCachable() method.
+        this.cacheable = False
+
+        # The 'help' Endpoint will print this text.
+        # Setting this will inform users on how to use your Endpoint.
+        # Help will automatically print the name of *this for you, along with optional and required args, supported methods, and allowed next
+        this.helpText = '''\
+I'm just a generic endpoint. Not much I can do for ya. :\
+'''
 
 
     # Call things!
@@ -48,9 +73,12 @@ class Endpoint(e.UserFunctor):
         return True
 
 
-    # API compatibility shim
-    def DidUserFunctionSucceed(this):
-        return this.DidCallSucceed()
+    # If an error is thrown while Call()ing *this, APIE will attempt to return this method.
+    def HandleBadRequest(this, request, error):
+        message = f"Bad request for {this.name}: {str(error)}. "
+        if ('help' in this.allowedNext):
+            message += "Try appending /help."
+        return message, 400
 
 
     # Hook for any pre-call configuration
@@ -64,22 +92,54 @@ class Endpoint(e.UserFunctor):
     def PostCall(this):
         pass
 
+    # Because APIE caches endpoints, the last response given will be stored in *this.
+    # Call this method to clear the stale data.
+    def ResetResponse(this):
+        this.response = {}
+        this.response['code'] = 200
+        this.response['headers'] = {}
+        this.response['content_data'] = {}
+        this.response['content_string'] = ""
+
     # Called right before *this returns.
     # Handles json pickling, etc.
     def ProcessResponse(this):
-        if (this.mode == 'json'):
+        if (this.mime == 'application/json'):
             if (len(this.response['content_string'])):
                 logging.warning(f"Clobbering content_string ({this.response['content_string']})")
 
-            this.response['content_string'].update({'cachable': this.cachable})
+            this.response['content_data'].update({'cacheable': this.cacheable})
             this.response['content_string'] = jsonpickle.encode(this.response['content_data'])
+
+        if ('Content-Type' not in this.response['headers']):
+            this.response['headers'].update({'Content-Type': this.mime})
+
+        return Response(
+            response = this.response['content_string'],
+            status = this.response['code'],
+            headers = this.response['headers'],
+            content_type = None, #why is this here, we set it in the header. This is a problem in Flask.
+            mimetype = this.mime, #This one is okay, I guess???
+            direct_passthrough = True # For speed??
+        )
+
 
     # Override of eons.Functor method. See that class for details
     def UserFunction(this):
+        # Skip execution when the user is asking for help.
+        if (this.next and this.next[-1] == 'help'):
+            return this.CallNext()
+
+        this.ResetResponse()
+        
         this.Call()
+        
+        if (not this.DidCallSucceed()):
+            raise OtherAPIError(f"{this.name} failed.")
+        
         if (not this.next):
-            this.ProcessResponse()
-            return this.response['content_data'], this.response['code']
+            return this.ProcessResponse()
+        
         return this.CallNext()
 
 
@@ -89,14 +149,30 @@ class Endpoint(e.UserFunctor):
 
     #### SPECIALIZED OVERRIDES. IGNORE THESE ####
 
+    # API compatibility shim
+    def DidUserFunctionSucceed(this):
+        return this.DidCallSucceed()
+
 
     #Grab any known and necessary args from this.kwargs before any Fetch calls are made.
+    # This is executed first when calling *this.
     def ParseInitialArgs(this):
         super().ParseInitialArgs()
+
+        # We want to let the executor know who we are as soon as possible, in case any errors come up in validation.
+        this.executor.lastEndpoint = this
+
+        this.request = this.kwargs.pop('request')
+
         if ('predecessor' in this.kwargs):
             this.predecessor = this.kwargs.pop('predecessor')
         else:
             this.predecessor = None
+
+        if ('next' in this.kwargs):
+            this.next = this.kwargs.pop('next')
+        else:
+            this.next = []
 
 
     # Will try to get a value for the given varName from:
@@ -112,7 +188,8 @@ class Endpoint(e.UserFunctor):
         enableArgs=True,
         enableExecutorConfig=True,
         enableEnvironment=True,
-        enablePrecedingEndpoint=True):
+        enablePrecedingEndpoint=True,
+        enableRequest=True):
             
         # Duplicate code from eons.UserFunctor in order to establish precedence.
         if (enableThis and hasattr(this, varName)):
@@ -120,9 +197,50 @@ class Endpoint(e.UserFunctor):
             return getattr(this, varName)
 
         if (enablePrecedingEndpoint and this.predecessor is not None):
-            val = this.predecessor.Fetch(varName, default, enableThis, enableExecutor, enableArgs, enableExecutorConfig, enableEnvironment, enablePrecedingEndpoint)
+            val = this.predecessor.Fetch(varName, default, enableThis, enableExecutor, enableArgs, enableExecutorConfig, enableEnvironment, enablePrecedingEndpoint, enableRequest)
             if (val is not None):
-                logging.debug(f"...got {varName} from predecessor.")
+                # logging.debug(f"...got {varName} from predecessor.") # Too many logs.
                 return val
-        else: #No need to call the super method multiple times if the predecessor already did.
+        else: #No need to call the these methods multiple times if the predecessor already did.
+            if (enableRequest):
+                for field in this.fetchFromRequest:
+                    if (field == 'json' and this.request.content_type != "application/json"):
+                        continue
+                    if (field == 'forms' and not this.request.data):
+                        continue
+                    if (field == 'files' and not this.request.files):
+                        continue
+                    
+                    val = getattr(this.request, field).get(varName)
+                    if (val is not None):
+                        logging.debug(f"...got {varName} from request.")
+                        return val
+
             return super().Fetch(varName, default, enableThis, enableExecutor, enableArgs, enableExecutorConfig, enableEnvironment)
+
+
+    def ValidateMethod(this):
+        if (this.request.method not in this.supportedMethods):
+            raise OtherAPIError(f"Method not supported: {this.request.method}")
+
+    def ValidateNext(this):
+        if (this.next and this.next[0] not in this.allowedNext):
+            if (this.next[0] in ['hack'] and not this.executor.dev):
+                raise OtherAPIError(f"Hacking is forbidden on production servers.")
+            else:
+                raise OtherAPIError(f"Next Endpoint not allowed: {this.next[0]}")
+
+    def ValidateArgs(this):
+        try:
+            super().ValidateArgs()
+        except eons.MissingArgumentError as e:
+            # It doesn't matter if *this isn't valid if the user is asking for help.
+            if (this.next and this.next[-1] == 'help'):
+                return
+            raise e
+
+        this.ValidateMethod()
+        this.ValidateNext()
+        
+
+

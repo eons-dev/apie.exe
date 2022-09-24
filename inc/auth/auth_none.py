@@ -10,5 +10,8 @@ class none(apie.Authenticator):
 
     # Yep!
     def UserFunction(this):
-        logging.debug(f"Allowing request for {this.path} with authentication: {this.auth}")
+        if (this.request.authorization is None):
+            logging.debug(f"Allowing request for {this.path} without authentication")
+        else:
+            logging.debug(f"Allowing request for {this.path} with authentication: {this.request.authorization}")
         return True
