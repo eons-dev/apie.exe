@@ -1,10 +1,10 @@
 # Application Program Interface with Eons
 
-This program makes serving [RESTful APIs](https://restfulapi.net/) easy!  
-You can also use apie for building webapps with user sessions.
+Whether you want to make a [RESTful API](https://restfulapi.net/) or a fully functional web app, `apie` will help you build quickly and reliably: the eons way!
 
 APIE is built on [eons](https://github.com/eons-dev/lib_eons) and uses [Eons Infrastructure Technologies](https://infrastructure.tech) to deliver modular functionality just-in-time.
 
+The goal of developing http servers this way is to separate complex logic into a number of distinct, independent, and reusable Endpoints. This makes development easier through direct application of the [Unix Philosophy](https://en.wikipedia.org/wiki/Unix_philosophy) and ensures your systems are intuitive for users to apply to novel contexts after learning them once.
 
 ## Installation
 `pip install apie`
@@ -14,7 +14,6 @@ APIE is built on [eons](https://github.com/eons-dev/lib_eons) and uses [Eons Inf
 
 To run an `apie` server simply:
 ```shell
-pip install apie
 apie
 ```
 
@@ -31,8 +30,7 @@ You may also specify:
 
 ### apie.json
 
-APIE will look for a file called "apie.json" in the directory it is launched from. If such is found, the configuration values from it will be read and processed in accordance with the eons library.  
-For example, `apie --clean_start False` is the same as `apie` with an apie.json containing `{"clean_start": false}`
+APIE will look for a file called "apie.json" in the directory it is launched from. If such is found, the configuration values from it will be read and processed in accordance with the eons library. For example, `apie --clean_start False` is the same as `apie` with an apie.json containing `{"clean_start": false}`
 
 
 ### Parallelism
@@ -59,10 +57,10 @@ You may use any of the following http methods:
 The goal of authorizing requests is to prevent every api from becoming the same, since Endpoints are executed on-demand (see below), and to impose the obviously needed security.
 If a request is not authorized, no Endpoint is called. This means you can limit which Endpoints are callable and who can call them.
 
-Each and every request must be authenticated. You may use whatever authentication system you want (including the `none` provided in the `apie` package).
+Each and every request must be authenticated. You may use whatever authentication system you want (including the `none` and `from_config` modules provided in the `apie` package).
 
 Your chosen authentication module must be of the `auth_` type if using [Eons Infrastructure Technologies](https://infrastructure.tech) (the default repository).  
-To create your own authorization system, check out `inc/auth/auth_none.py` for a starting point.  
+To create your own authorization system, check out `inc/auth/auth_from_config.py` for a starting point.  
 NOTE: Every `Authenticator` MUST return `True` or `False`.
 
 
@@ -75,10 +73,10 @@ To see where packages are downloaded from and additional options, check out the 
 
 Each Endpoint may modify the next by simply setting member variables. For example, you might have 3 Endpoints: `package`, `photo`, and `upload`; both `package` and `photo` set a member called `file_data`; `upload` then `Fetch`es (a method provided by eons) the `file_data` value and puts it somewhere; you can thus use `upload` with either predecessor (e.g. `.../package/upload` and `.../photo/upload`).
 
-This style of dynamic execution allows you to develop your API separately from its deployment environment and should make all parts of development easier.
+This style of dynamic execution allows you to develop your API separately from its deployment environment (i.e. each module is standalone) and should make all parts of development easier.
 
 All Endpoint modules must be of the `api_` type if using [Eons Infrastructure Technologies](https://infrastructure.tech) (the default repository).  
-To create your own Endpoints, check out `inc/api/api_help.py` for a starting point. 
+To create your own Endpoints, check out `inc/api/api_external.py` for a starting point. 
 
 
 #### Returns
@@ -100,14 +98,15 @@ In addition to authenticating each request, Endpoints may further restrict what 
 By specifying only a limited list of actions, even users who are allowed to call your Endpoint can't call things like `.../something/legitimate/now_dump_all_user_passwords/k_thx_bye`.  
 You can add to the `allowedNext` member by `append(...)`ing to the list.
 
-You may also require only certain http methods be used with your Endpoint. This is for sanity more than security. Restricting the `this.supportedMethods` member (also a list), you can prevent things like `curl -X DELETE host/create/my_resource`. The `supportedMethods` is prepopulated with all the http methods listed above. You can remove methods from this list with `this.supportedMethods.remove(...)`.
+You may also require only certain http methods be used with your Endpoint. This is for sanity more than security. Restricting the `this.supportedMethods` member (also a list), you can prevent things like `curl -X DELETE host/create/my_resource`. The `supportedMethods` is prepopulated with all the [http methods listed above](#methods). You can remove methods from this list with `this.supportedMethods.remove(...)`.
 
 
 #### Error Handling
 
 APIE itself keeps track of the last Endpoint it called. This allows that Endpoint to handle errors in its own execution. 
 
-If you would like to add custom error handling, override `HandleBadRequest()` in your Endpoint. By default this just tells the user to call your Endpoint with `/help` (see [below](#help)) and will say what went wrong.
+If you would like to add custom error handling, override `HandleBadRequest()` in your Endpoint. By default this will print the error message, per a any python Exception and tells the user to call your Endpoint with `/help` (see [below](#help)).
+
 
 ## REST Compatibility
 
@@ -130,13 +129,14 @@ Endpoints should not provide duplicate functionality (besides, don't write the s
 ### Client–server
 > "Servers and clients may also be replaced and developed independently, as long as the interface between them is not altered."
 
-Done.
+In addition to interacting with other machines over the net, the client-server paradigm is expanded to server-side processing through the use of standalone Endpoints. Each Endpoint should follow its own, independent development lifecycle and be interchangeable with any other Endpoint that provides the same up (`preceding`) and down (`next`) stream interfaces.
 
 
 ### Stateless
-> "It will treat every request as new. No session, no history."
+> "[The server] will treat every request as new. No session, no history."
 
-While you can break this paradigm by, say, storing requests in a database that you query on subsequent requests, try not to vary your behavior based on past interactions.
+This part is optional and what ultimately defines RESTful compatibility in APIE.  
+If you wish to maintain state, use a custom Authenticator as described [below](#web-apps-user-sessions-and-the-static-auth).
 
 > "No client context shall be stored on the server between requests. The client is responsible for managing the state of the application."
 
