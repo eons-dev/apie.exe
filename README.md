@@ -57,7 +57,7 @@ You may use any of the following http methods:
 The goal of authorizing requests is to prevent every api from becoming the same, since Endpoints are executed on-demand (see below), and to impose the obviously needed security.
 If a request is not authorized, no Endpoint is called. This means you can limit which Endpoints are callable and who can call them.
 
-Each and every request must be authenticated. You may use whatever authentication system you want (including the `none` and `from_config` modules provided in the `apie` package).
+Each and every request must be authenticated. You may use whatever authentication system you want (including the `noauth` and `from_config` modules provided in the `apie` package).
 
 Your chosen authentication module must be of the `auth_` type if using [Eons Infrastructure Technologies](https://infrastructure.tech) (the default repository).  
 To create your own authorization system, check out `inc/auth/auth_from_config.py` for a starting point.  

@@ -11,7 +11,7 @@ from .Exceptions import *
 class APIE(eons.Executor):
 
     def __init__(this):
-        super().__init__(name="Application Program Interface with eons", descriptionStr="A readily extensible take on APIs.")
+        super().__init__(name="Application Program Interface with Eons", descriptionStr="A readily extensible take on APIs.")
 
         # this.RegisterDirectory("ebbs")
 
@@ -19,7 +19,7 @@ class APIE(eons.Executor):
         this.optionalKWArgs['port'] = 80
         this.optionalKWArgs['dev'] = False
         this.optionalKWArgs['clean_start'] = True
-        this.optionalKWArgs['authenticator'] = "none"
+        this.optionalKWArgs['authenticator'] = "noauth"
         this.optionalKWArgs['preprocessor'] = ""
 
         this.supportedMethods = [
@@ -45,13 +45,16 @@ class APIE(eons.Executor):
 
         this.defualtConfigFile = "apie.json"
 
+    # Override of eons.Executor method. See that class for details
+    def RegisterIncludedClasses(this):
+        super().RegisterIncludedClasses()
+        this.RegisterAllClassesInDirectory(str(Path(__file__).resolve().parent.joinpath("api")))
+        this.RegisterAllClassesInDirectory(str(Path(__file__).resolve().parent.joinpath("auth")))
+        
 
     # Override of eons.Executor method. See that class for details
     def RegisterAllClasses(this):
         super().RegisterAllClasses()
-        this.RegisterAllClassesInDirectory(str(Path(__file__).resolve().parent.joinpath("api")))
-        this.RegisterAllClassesInDirectory(str(Path(__file__).resolve().parent.joinpath("auth")))
-
 
     # Acquire and run the given endpoint with the given request.
     def ProcessEndpoint(this, endpointName, request, **kwargs):

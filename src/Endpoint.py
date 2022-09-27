@@ -48,10 +48,27 @@ class Endpoint(eons.UserFunctor):
         
         this.optionalKWArgs['next'] = []
         this.optionalKWArgs['mime'] = 'application/json'
+        
+        # Hop-by-hop headers are forbidden by WSGI.
+        this.optionalKWArgs['forbidden_headers'] = [
+            'Keep-Alive',
+            'Transfer-Encoding',
+            'TE',
+            'Connection',
+            'Trailer',
+            'Upgrade',
+            'Proxy-Authorization',
+            'Proxy-Authenticate',
+        ]
 
         # If the client can store the result of *this locally, let them know.
         # When querying this, it is best to use the IsCachable() method.
         this.cacheable = False
+
+        # If compiling data, from this.response['content_data'] for example, the response['content_string'] of *this will be overwritten.
+        # You can override this behavior and force the compiled data to be lost by setting clobberContent to False.
+        # This is useful if you are forwarding json requests and don't want to parse then recompile the content.
+        this.clobberContent = True
 
         # The 'help' Endpoint will print this text.
         # Setting this will inform users on how to use your Endpoint.
@@ -59,7 +76,6 @@ class Endpoint(eons.UserFunctor):
         this.helpText = '''\
 I'm just a generic endpoint. Not much I can do for ya. :\
 '''
-
 
     # Call things!
     # Override this or die.
@@ -104,22 +120,29 @@ I'm just a generic endpoint. Not much I can do for ya. :\
     # Called right before *this returns.
     # Handles json pickling, etc.
     def ProcessResponse(this):
-        if (this.mime == 'application/json'):
-            if (len(this.response['content_string'])):
-                logging.warning(f"Clobbering content_string ({this.response['content_string']})")
+        if (this.clobberContent):
+            if(this.mime == 'application/json'):
+                if (len(this.response['content_string'])):
+                    logging.info(f"Clobbering content_string ({this.response['content_string']})")
 
-            this.response['content_data'].update({'cacheable': this.cacheable})
-            this.response['content_string'] = jsonpickle.encode(this.response['content_data'])
+                this.response['content_data'].update({'cacheable': this.cacheable})
+                this.response['content_string'] = jsonpickle.encode(this.response['content_data'])
 
         if ('Content-Type' not in this.response['headers']):
             this.response['headers'].update({'Content-Type': this.mime})
 
+        for header in this.forbidden_headers:
+            try:
+                this.response['headers'].pop(header)
+            except KeyError:
+                pass
+
         return Response(
             response = this.response['content_string'],
             status = this.response['code'],
-            headers = this.response['headers'],
-            content_type = None, #why is this here, we set it in the header. This is a problem in Flask.
+            headers = this.response['headers'].items(),
             mimetype = this.mime, #This one is okay, I guess???
+            content_type = None, #why is this here, we set it in the header. This is a problem in Flask.
             direct_passthrough = True # For speed??
         )
 
@@ -193,28 +216,30 @@ I'm just a generic endpoint. Not much I can do for ya. :\
             
         # Duplicate code from eons.UserFunctor in order to establish precedence.
         if (enableThis and hasattr(this, varName)):
-            logging.debug("...got {varName} from self ({this.name}).")
+            logging.debug(f"...got {varName} from {this.name}.")
             return getattr(this, varName)
 
         if (enablePrecedingEndpoint and this.predecessor is not None):
             val = this.predecessor.Fetch(varName, default, enableThis, enableExecutor, enableArgs, enableExecutorConfig, enableEnvironment, enablePrecedingEndpoint, enableRequest)
             if (val is not None):
-                # logging.debug(f"...got {varName} from predecessor.") # Too many logs.
+                logging.debug(f"...got {varName} from predecessor.") # Too many logs.
                 return val
-        else: #No need to call the these methods multiple times if the predecessor already did.
-            if (enableRequest):
-                for field in this.fetchFromRequest:
-                    if (field == 'json' and this.request.content_type != "application/json"):
-                        continue
-                    if (field == 'forms' and not this.request.data):
-                        continue
-                    if (field == 'files' and not this.request.files):
-                        continue
-                    
-                    val = getattr(this.request, field).get(varName)
-                    if (val is not None):
-                        logging.debug(f"...got {varName} from request.")
-                        return val
+
+        # Checking this when the predecessor already did is wasteful but we don't know what they're looking at or looking for, so let's do it again.
+        if (enableRequest):
+            for field in this.fetchFromRequest:
+                if (field == 'json' and this.request.content_type != "application/json"):
+                    continue
+                if (field == 'forms' and not this.request.data):
+                    continue
+                if (field == 'files' and not this.request.files):
+                    continue
+                
+                # TODO: there's a better way to do this. You can pass the field arg to this.request somehow...
+                val = getattr(this.request, field).get(varName)
+                if (val is not None):
+                    logging.debug(f"...got {varName} from request.")
+                    return val
 
             return super().Fetch(varName, default, enableThis, enableExecutor, enableArgs, enableExecutorConfig, enableEnvironment)
 

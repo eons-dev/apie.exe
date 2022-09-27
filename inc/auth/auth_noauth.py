@@ -4,7 +4,7 @@ import apie
 
 # No Auth allows all requests.
 # THIS IS EXTREMELY UNSAFE!
-class none(apie.Authenticator):
+class noauth(apie.Authenticator):
     def __init__(this, name="No Authentication Authenticator"):
         super().__init__(name)
 

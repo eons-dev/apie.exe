@@ -12,10 +12,14 @@ class external(apie.Endpoint):
         
         this.optionalKWArgs['method'] = "get"
         this.optionalKWArgs['authenticator'] = ""
-        this.optionalKWArgs['data_map'] = None
+        this.optionalKWArgs['query_map'] = None #get parameters
+        this.optionalKWArgs['data_map'] = None #request body
         this.optionalKWArgs['headers'] = {}
         this.optionalKWArgs['data'] = {}
         this.optionalKWArgs['files'] = {}
+        this.optionalKWArgs['decode'] = 'ascii'
+
+        this.clobberContent = False
 
         this.externalResponse = None
 
@@ -31,11 +35,15 @@ When sending the response, the result is decoded as ascii. This means sending bi
 '''
 
     def MapData(this):
-        if (this.data_map is None):
-            return
-
-        for key, val in this.data_map:
-            this.data.update({key: this.Fetch(val)})
+        if (this.data_map):
+            for key, val in this.data_map.items():
+                this.data.update({key: this.Fetch(val)})
+        
+        if (this.query_map):
+            this.url += '?'
+            for key, val in this.query_map.items():
+                this.url += f"{key}={this.Fetch(val)}&"
+            this.url = this.url[:-1] #trim the last "&"
 
     def ConstructRequest(this):
         this.externalRequest = {
@@ -64,4 +72,7 @@ When sending the response, the result is decoded as ascii. This means sending bi
         this.response['code'] = this.externalResponse.status_code
         this.response['headers'] = this.externalResponse.headers 
         this.response['files'] = this.externalResponse.headers ##########################
-        this.response['content_string'] = this.externalResponse.content.decode('ascii')
+        if (this.decode):
+            this.response['content_string'] = this.externalResponse.content.decode(this.decode)
+        else:
+            this.response['content_string'] = this.externalResponse.content
