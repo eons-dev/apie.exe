@@ -6,6 +6,8 @@ class help(apie.Endpoint):
     def __init__(this, name="Help for preceding API Endpoint"):
         super().__init__(name)
 
+        this.mime = 'application/json'
+
     def Call(this):
         this.cacheable = this.predecessor.cacheable #cacheable is automatically added to the response
         this.response['content_data'].update({

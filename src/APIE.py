@@ -95,10 +95,13 @@ class APIE(eons.Executor):
                     endpoints = []
                     if (this.preprocessor):
                         endpoints.append(this.preprocessor)
+                    if (path.endswith('/')):
+                        path = path[:-1]
                     endpoints.extend(path.split('/'))
                     this.lastEndpoint = None
                     logging.debug(f"Responding to request for {path}; request: {request}")
                     response = this.ProcessEndpoint(endpoints.pop(0), request, next=endpoints)
+                    logging.debug(f"Got headers: {response.headers}")
                     logging.debug(f"Got response: {response}")
                     return response
                 else:
