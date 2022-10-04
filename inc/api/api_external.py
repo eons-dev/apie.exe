@@ -2,6 +2,7 @@ import os
 import logging
 import apie
 import requests
+from urllib.parse import urlparse
 
 # External Endpoints make a request to another server and return the result.
 class external(apie.Endpoint):
@@ -35,6 +36,8 @@ When sending the response, the result is decoded as ascii. This means sending bi
 '''
 
     def MapData(this):
+        this.path = urlparse(this.url).path[1:]
+
         if (this.data_map):
             for key, val in this.data_map.items():
                 this.data.update({key: this.Fetch(val)})
@@ -59,8 +62,8 @@ When sending the response, the result is decoded as ascii. This means sending bi
             return True
 
         # TODO: cache auth??
-        auth = this.exeutor.GetRegistered(this.authenticator, "auth")
-        return auth(this.externalRequest)
+        this.auth = this.exeutor.GetRegistered(this.authenticator, "auth")
+        return this.auth(executor=this.exeutor, path=this.path, request=this.externalRequest)
 
     def MakeRequest(this):
         this.externalResponse = requests.request(**this.externalRequest)
@@ -68,10 +71,11 @@ When sending the response, the result is decoded as ascii. This means sending bi
     def Call(this):
         this.MapData()
         this.ConstructRequest()
+        if (not this.AuthenticateRequest()):
+            return this.auth.Unauthorized(this.path)
         this.MakeRequest()
         this.response['code'] = this.externalResponse.status_code
         this.response['headers'] = this.externalResponse.headers 
-        this.response['files'] = this.externalResponse.headers ##########################
         if (this.decode):
             this.response['content_string'] = this.externalResponse.content.decode(this.decode)
         else:
