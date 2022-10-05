@@ -15,7 +15,7 @@ class external(apie.Endpoint):
         this.optionalKWArgs['authenticator'] = ""
         this.optionalKWArgs['query_map'] = None #get parameters
         this.optionalKWArgs['data_map'] = None #request body
-        this.optionalKWArgs['headers'] = {}
+        this.optionalKWArgs['headers'] = None #None => request.headers; {} => {}
         this.optionalKWArgs['data'] = {}
         this.optionalKWArgs['files'] = {}
         this.optionalKWArgs['decode'] = 'ascii'
@@ -56,14 +56,16 @@ When sending the response, the result is decoded as ascii. This means sending bi
             'data': this.data,
             'files': this.files
         }
+        if (this.headers is None):
+            this.externalRequest['headers'] = this.request.headers
 
     def AuthenticateRequest(this):
         if (not this.authenticator):
             return True
 
         # TODO: cache auth??
-        this.auth = this.exeutor.GetRegistered(this.authenticator, "auth")
-        return this.auth(executor=this.exeutor, path=this.path, request=this.externalRequest)
+        this.auth = this.executor.GetRegistered(this.authenticator, "auth")
+        return this.auth(executor=this.executor, path=this.path, request=this.externalRequest, predecessor=this)
 
     def MakeRequest(this):
         this.externalResponse = requests.request(**this.externalRequest)
@@ -72,7 +74,10 @@ When sending the response, the result is decoded as ascii. This means sending bi
         this.MapData()
         this.ConstructRequest()
         if (not this.AuthenticateRequest()):
-            return this.auth.Unauthorized(this.path)
+
+            this.response['content_string'], this.response['code'] = this.auth.Unauthorized(this.path)
+            #TODO: Headers?
+            return
         this.MakeRequest()
         this.response['code'] = this.externalResponse.status_code
         this.response['headers'] = this.externalResponse.headers 

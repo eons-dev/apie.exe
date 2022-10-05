@@ -6,6 +6,7 @@ import jsonpickle
 from pathlib import Path
 from flask import request, Response
 from .Exceptions import *
+from .Functor import Functor
 
 # Endpoints are what is run when a given request is successfully authenticated.
 # Put all your actual API logic in these!
@@ -17,7 +18,7 @@ from .Exceptions import *
 # For example, you might have 3 Endpoints: "package", "photo", and "upload"; both package and photo set a member called "file_data"; upload Fetches "file_data" and puts it somewhere; you can thus use upload with either predecessor (e.g. .../package/upload and .../photo/upload).
 # What is returned by an Endpoint is the very last Endpoint's return value. All intermediate values are skipped (so you can throw errors if calling things like .../package without a further action).
 # NOTE: Endpoints should be published as api_s (i.e. projectType="api")
-class Endpoint(eons.UserFunctor):
+class Endpoint(Functor):
     def __init__(this, name=eons.INVALID_NAME()):
         super().__init__(name)
 
@@ -37,20 +38,10 @@ class Endpoint(eons.UserFunctor):
         # Also, please keep 'help'. It helps.
         this.allowedNext = ['help']
 
-        # If you'd like to only check for your values in certain places, adjust this list.
-        # These will call the corresponding methods as described in the docs: https://flask.palletsprojects.com/en/2.2.x/api/#flask.Request.args
-        this.fetchFromRequest = [
-            'args',
-            'form',
-            'json',
-            'files'
-        ]
-        
-        this.optionalKWArgs['next'] = []
-        this.optionalKWArgs['mime'] = 'application/json'
-        
+        this.next = []
+
         # Hop-by-hop headers are forbidden by WSGI.
-        this.optionalKWArgs['forbidden_headers'] = [
+        this.forbidden_headers = [
             'Keep-Alive',
             'Transfer-Encoding',
             'TE',
@@ -60,6 +51,9 @@ class Endpoint(eons.UserFunctor):
             'Proxy-Authorization',
             'Proxy-Authenticate',
         ]
+
+        # What should the return type of *this be?
+        this.mime = 'application/json'
 
         # If the client can store the result of *this locally, let them know.
         # When querying this, it is best to use the IsCachable() method.
@@ -185,64 +179,10 @@ I'm just a generic endpoint. Not much I can do for ya. :\
         # We want to let the executor know who we are as soon as possible, in case any errors come up in validation.
         this.executor.lastEndpoint = this
 
-        this.request = this.kwargs.pop('request')
-
-        if ('predecessor' in this.kwargs):
-            this.predecessor = this.kwargs.pop('predecessor')
-        else:
-            this.predecessor = None
-
         if ('next' in this.kwargs):
             this.next = this.kwargs.pop('next')
         else:
             this.next = []
-
-
-    # Will try to get a value for the given varName from:
-    #    first: this
-    #    second: the endpoint preceding *this
-    #    third: the executor (args > config > environment)
-    # RETURNS the value of the given variable or None.
-    def Fetch(this,
-        varName,
-        default=None,
-        enableThis=True,
-        enableExecutor=True,
-        enableArgs=True,
-        enableExecutorConfig=True,
-        enableEnvironment=True,
-        enablePrecedingEndpoint=True,
-        enableRequest=True):
-            
-        # Duplicate code from eons.UserFunctor in order to establish precedence.
-        if (enableThis and hasattr(this, varName)):
-            logging.debug(f"...got {varName} from {this.name}.")
-            return getattr(this, varName)
-
-        if (enablePrecedingEndpoint and this.predecessor is not None):
-            val = this.predecessor.Fetch(varName, default, enableThis, enableExecutor, enableArgs, enableExecutorConfig, enableEnvironment, enablePrecedingEndpoint, enableRequest)
-            if (val is not None):
-                logging.debug(f"...got {varName} from predecessor.") # Too many logs.
-                return val
-
-        # Checking this when the predecessor already did is wasteful but we don't know what they're looking at or looking for, so let's do it again.
-        if (enableRequest):
-            for field in this.fetchFromRequest:
-                if (field == 'json' and this.request.content_type != "application/json"):
-                    continue
-                if (field == 'forms' and not this.request.data):
-                    continue
-                if (field == 'files' and not this.request.files):
-                    continue
-                
-                # TODO: there's a better way to do this. You can pass the field arg to this.request somehow...
-                val = getattr(this.request, field).get(varName)
-                if (val is not None):
-                    logging.debug(f"...got {varName} from request.")
-                    return val
-
-            return super().Fetch(varName, default, enableThis, enableExecutor, enableArgs, enableExecutorConfig, enableEnvironment)
-
 
     def ValidateMethod(this):
         if (this.request.method not in this.supportedMethods):
