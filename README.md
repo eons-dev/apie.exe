@@ -60,7 +60,7 @@ If a request is not authorized, no Endpoint is called. This means you can limit 
 Each and every request must be authenticated. You may use whatever authentication system you want (including the `noauth` and `from_config` modules provided in the `apie` package).
 
 Your chosen authentication module must be of the `auth_` type if using [Eons Infrastructure Technologies](https://infrastructure.tech) (the default repository).  
-To create your own authorization system, check out `inc/auth/auth_from_config.py` for a starting point.  
+To create your own authorization system, check out [auth_from_config.py](inc/auth/auth_from_config.py) for a starting point.  
 NOTE: Every `Authenticator` MUST return `True` or `False`.
 
 
@@ -71,25 +71,25 @@ Endpoints `.../are/all/of/these?but=not-these`; in other words each part of a re
 To provide functionality, `apie` will download the Endpoints for any request that is executed as part of processing that request.
 To see where packages are downloaded from and additional options, check out the [eons python library](https://github.com/eons-dev/lib_eons).
 
-Each Endpoint may modify the next by simply setting member variables. For example, you might have 3 Endpoints: `package`, `photo`, and `upload`; both `package` and `photo` set a member called `file_data`; `upload` then `Fetch`es (a method provided by eons) the `file_data` value and puts it somewhere; you can thus use `upload` with either predecessor (e.g. `.../package/upload` and `.../photo/upload`).
+Each Endpoint may modify the next by simply setting member variables and methods ([per the eons implicit inheritance system](https://github.com/eons-dev/lib_eons/#implicit-inheritance)). For example, you might have 3 Endpoints: `package`, `photo`, and `upload`; both `package` and `photo` set a member called `file_data`; `upload` then `Fetch`es ([a method provided by eons](https://github.com/eons-dev/lib_eons/#inputs-through-configuration-file-and-fetch)) the `file_data` value and puts it somewhere; you can thus use `upload` with either precursor (e.g. `.../package/upload` and `.../photo/upload`).
 
 This style of dynamic execution allows you to develop your API separately from its deployment environment (i.e. each module is standalone) and should make all parts of development easier.
 
 All Endpoint modules must be of the `api_` type if using [Eons Infrastructure Technologies](https://infrastructure.tech) (the default repository).  
-To create your own Endpoints, check out `inc/api/api_external.py` for a starting point. 
+To create your own Endpoints, check out [api_external.py](inc/api/api_external.py) for a starting point. 
 
 
 #### Returns
 
 **Only the last Endpoint is returned!**  
-This is done to ensure that all information given is intended. If you want to provide information in your response, grab that information from the predecessors, using `Fetch()`.  
+This is done to ensure that all information given is intended. If you want to provide information in your response, grab that information from the precursors, using `Fetch()`.  
 Return values are automatically set from the `this.response` member.  
-All Endpoints MAY set `this.response['code']`: an [http status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes) in the form of an `int`.
+All Endpoints may set `this.response.code`: an [http status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes) in the form of an `int`.
 
 Every `Endpoint` should have a `this.mime` value. By default, it is `application/json`.  
 For more on MIME Types, check out the [Mozilla documentation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types).
 
-If the mime type is `application/json`, the data that are in `this.response['content_data']` will be converted into json upon return.
+If the mime type is `application/json`, the data that are in `this.response.content.data` will be converted into a json string upon return.
 
 
 #### Security and Validation
@@ -105,7 +105,7 @@ You may also require only certain http methods be used with your Endpoint. This 
 
 APIE itself keeps track of the last Endpoint it called. This allows that Endpoint to handle errors in its own execution. 
 
-If you would like to add custom error handling, override `HandleBadRequest()` in your Endpoint. By default this will print the error message, per a any python Exception and tells the user to call your Endpoint with `/help` (see [below](#help)).
+If you would like to add custom error handling, override `HandleBadRequest()` in your Endpoint. By default this will print the error message, per the python Exception and tells the user to call your Endpoint with `/help` (see [below](#help)).
 
 
 ## REST Compatibility
@@ -195,3 +195,15 @@ By default, you can call `.../anything/help` to get information on how to use `a
 
 Included in the apie package is the `from_config` Authenticator. This allows you to store a static authentication scheme locally.  
 This does not help with dynamic user access but does allow you to limit what Endpoints you allow access to.
+
+
+## Resource Paradigm
+
+One possible means of using apie is through the Resource Paradigm. This concept frames all apie requests as manipulations of resources. 
+
+Resources can be anything but will generally be correlated with data structures of similar shape. For example, "user" might be a resource, where each user has a name, email, and password. These 3 fields define the shape of a user datum.
+
+Manipulations take place through Operations and Operation Implementations. Operations are simple and define a consistent interface for use across many different resources. For example, the `list` operation is always paginated, so you can `.../user/list?page=2` or `.../whatever_else/list?per_page=100`. The list operation itself simply defines what arguments can be provided, gives some standard help text for users, and establishes basic features. How `list` actually works is entirely dependent on the implementation specified in the apie configuration. For example, if you `list` files stored on the server, you might use a `local` implementation to read and reply with inode data from the local filesystem; whereas, listing items from a database would use a `database` implementation, and so on.
+
+The apie resource paradigm looks something like:
+![image showing the layers of the apie resource paradigm](apie_resource-paradigm.png)
