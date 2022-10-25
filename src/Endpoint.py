@@ -24,6 +24,10 @@ class Endpoint(Functor):
 
 		this.enableRollback = False
 
+		# Internal logic; used when calling 'help', etc.
+		this.bypassCall = False
+
+		# What methods can be used with this Endpoint?
 		this.supportedMethods = [
 			'POST',
 			'GET',
@@ -156,31 +160,24 @@ LOL! Look at you: needing help. Pathetic.
 
 	# Override of eons.Functor method. See that class for details
 	def Function(this):
-		# Skip execution when the user is asking for help.
+		this.bypassCall = False
 		if (this.next and this.next[-1] == 'help'):
-			return this.CallNext()
+			this.bypassCall = True
+			return None
 
 		this.ResetResponse()
-		
+		this.PreCall()
 		this.Call()
-		
-		if (not this.DidCallSucceed()):
-			raise OtherAPIError(f"{this.name} failed.")
-		
-		if (not this.next):
-			return this.ProcessResponse()
-		
-		return this.CallNext()
-
-
-	def CallNext(this):
-		return this.executor.ProcessEndpoint(this.next.pop(0), this.request, precursor=this, next=this.next)
+		this.PostCall()
+		return this.ProcessResponse()
 
 
 	#### SPECIALIZED OVERRIDES. IGNORE THESE ####
 
 	# API compatibility shim
 	def DidFunctionSucceed(this):
+		if (this.bypassCall):
+			return True
 		return this.DidCallSucceed()
 
 	def PopulatePrecursor(this):
@@ -194,33 +191,29 @@ LOL! Look at you: needing help. Pathetic.
 	def ParseInitialArgs(this):
 		super().ParseInitialArgs()
 
-		if ('next' in this.kwargs):
-			this.next = this.kwargs.pop('next')
-		else:
-			this.next = []
 
 	def ValidateMethod(this):
 		if (this.request.method not in this.supportedMethods):
 			raise OtherAPIError(f"Method not supported: {this.request.method}")
 
-	def ValidateNext(this):
-		if (this.next and this.allowedNext and this.next[0] not in this.allowedNext):
-			if (this.next[0] in ['hack'] and not this.executor.dev):
+	def ValidateNext(this, next):
+		if (next and this.allowedNext and next not in this.allowedNext):
+			logging.error(f"{next} is not allowed after {this.name}; only {this.allowedNext}")
+			if (next in ['hack'] and not this.executor.dev):
 				raise OtherAPIError(f"Hacking is forbidden on production servers.")
 			else:
-				raise OtherAPIError(f"Next Endpoint not allowed: {this.next[0]}")
+				raise OtherAPIError(f"Next Endpoint not allowed: {next}")
+		return True
 
 	def ValidateArgs(this):
 		try:
 			super().ValidateArgs()
 		except eons.MissingArgumentError as e:
+			logging.recovery(f"Error is irrelevant; user is seeking help ({str(e)})")
 			# It doesn't matter if *this isn't valid if the user is asking for help.
 			if (this.next and this.next[-1] == 'help'):
 				return
 			raise e
-
-		this.ValidateMethod()
-		this.ValidateNext()
 		
 
 

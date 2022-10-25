@@ -17,7 +17,7 @@ class help(apie.Endpoint):
 			"allowed_next": this.precursor.allowedNext,
 			"required_args": this.precursor.requiredKWArgs,
 			"optional_args": this.precursor.optionalKWArgs,
-			"get_args_from_request": this.precursor.fetchFromRequest,
+			"get_args_from": this.precursor.fetchFrom,
 			"help_text": this.precursor.GetHelpText()
 		})
 

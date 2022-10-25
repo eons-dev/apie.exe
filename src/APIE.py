@@ -33,16 +33,7 @@ class APIE(eons.Executor):
 		# *this is single-threaded. If we want parallel processing, we can create replicas.
 		this.lastEndpoint = None
 
-
-		this.cachedEndpoints = {}
-
-
-	# Configure class defaults.
-	# Override of eons.Executor method. See that class for details
-	def Configure(this):
-		super().Configure()
-
-		this.defualtConfigFile = "apie.json"
+		this.defaultConfigFile = "apie.json"
 
 	# Override of eons.Executor method. See that class for details
 	def RegisterIncludedClasses(this):
@@ -57,11 +48,11 @@ class APIE(eons.Executor):
 
 	# Acquire and run the given endpoint with the given request.
 	def ProcessEndpoint(this, endpointName, request, **kwargs):
-		if (endpointName in this.cachedEndpoints):
-			return this.cachedEndpoints[endpointName](executor=this, request=request, **kwargs)
+		if (endpointName in this.cachedFunctors):
+			return this.cachedFunctors[endpointName](executor=this, request=request, **kwargs)
 		
 		endpoint = this.GetRegistered(endpointName, "api")
-		this.cachedEndpoints.update({endpointName: endpoint})
+		this.cachedFunctors.update({endpointName: endpoint})
 		return endpoint(executor=this, request=request, **kwargs)
 
 

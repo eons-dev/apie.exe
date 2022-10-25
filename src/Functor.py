@@ -37,11 +37,14 @@ class Functor(eons.Functor):
 		this.request = None
 
 
-	#Grab any known and necessary args from this.kwargs before any Fetch calls are made.
-	# This is executed first when calling *this.
+	# Grab any known and necessary args from this.kwargs before any Fetch calls are made.
+	# There should always be a request.
 	def ParseInitialArgs(this):
 		super().ParseInitialArgs()
-		this.request = this.kwargs.pop('request')
+		if (this.precursor):
+			this.request = this.precursor.request
+		else:
+			this.request = this.kwargs.pop('request')
 
 
 	def FetchFromRequest(this, field, varName, default):

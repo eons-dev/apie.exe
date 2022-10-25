@@ -75,10 +75,6 @@ Each Endpoint may modify the next by simply setting member variables and methods
 
 This style of dynamic execution allows you to develop your API separately from its deployment environment (i.e. each module is standalone) and should make all parts of development easier.
 
-All Endpoint modules must be of the `api_` type if using [Eons Infrastructure Technologies](https://infrastructure.tech) (the default repository).  
-To create your own Endpoints, check out [api_external.py](inc/api/api_external.py) for a starting point. 
-
-
 #### Returns
 
 **Only the last Endpoint is returned!**  

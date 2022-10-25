@@ -19,7 +19,7 @@ class from_config(apie.Authenticator):
 		logging.debug(f"No match for {this.path} in anonymous endpoints.")		
 		return False
 
-	def Function(this):
+	def Authenticate(this):
 		if (this.CanEndpointBeAccessedAnonymously()):
 			logging.debug(f"Allowing anonymous access to {this.path}.")
 			return True
