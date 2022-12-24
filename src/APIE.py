@@ -30,6 +30,10 @@ class APIE(eons.Executor):
 			'PATCH'
 		]
 
+		# Used in Function()
+		this.auth = None
+		this.flask = None
+
 		# *this is single-threaded. If we want parallel processing, we can create replicas.
 		this.lastEndpoint = None
 
@@ -46,8 +50,33 @@ class APIE(eons.Executor):
 	def RegisterAllClasses(this):
 		super().RegisterAllClasses()
 
+	def ParseSyntax(this, endpoint):
+		pre = "",
+		main = ""
+		if (endpoint.startswith('(')):
+
+
 	# Acquire and run the given endpoint with the given request.
 	def ProcessEndpoint(this, endpointName, request, **kwargs):
+
+		# Parse Endpoint syntax.
+		# "(..., ...)something" => multi(domain=[..., ...], next="something")
+		if (endpointName.startswith('(')):
+			if ('domain' in kwargs):
+				raise APIError(f"Domain already exists in multicall; domain={kwargs['domain']}; multicall={endpointName}")
+
+			domainStrEndPos = endpointName.find(')')+1
+			domainStr = endpointName[:domainStrEndPos]
+			if ('next' in kwargs):
+				kwargs['next'] = [endpointName[domainStrEndPos:]].extend(kwargs['next'])
+			else:
+				kwargs['next'] = endpointName[domainStrEndPos:]
+
+			# Trim '(' and ')', then make list.
+			kwargs['domain'] = domainStr[1:-1].split(',')
+
+			endpointName = "multi"
+
 		if (endpointName in this.cachedFunctors):
 			return this.cachedFunctors[endpointName](executor=this, request=request, **kwargs)
 		
