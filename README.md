@@ -51,7 +51,6 @@ You may use any of the following http methods:
 
 ## Design
 
-
 ### Authorization
 
 The goal of authorizing requests is to prevent every api from becoming the same, since Endpoints are executed on-demand (see below), and to impose the obviously needed security.
@@ -103,6 +102,29 @@ APIE itself keeps track of the last Endpoint it called. This allows that Endpoin
 
 If you would like to add custom error handling, override `HandleBadRequest()` in your Endpoint. By default this will print the error message, per the python Exception and tells the user to call your Endpoint with `/help` (see [below](#help)).
 
+
+### Syntax
+
+APIE supports some unique syntax which can be specified in the request path.
+
+#### Multi
+
+A "Multicall" will make the same call for each element in a domain. This is essentially a foreach loop.  
+Domains can be specified by prepending "[first_element,second_element]" to the desired Endpoint.  
+
+Requirements:
+1. The first character must be a '['.
+2. Each element must be separated by a comma (',') WITHOUT a space (i.e. ', ' is wrong but ',' is right).
+3. The domain must end with a ']'
+4. There must be a valid Endpoint after the domain.
+
+For example, `.../[public,private]list` would call `list` first with `public_` prepended to all Fetched arguments, then likewise with `private_`. If `list` needs a "url" arg, the first call would be made with `public_url` and the second would be made with `private_url`. The results of both would be combined (assuming the Content-Type is 'application/json') and a single list would be returned.
+
+For more information, see the [multi Endpoint](inc/api/api_multi.py).
+
+While not yet tested, multi-multi calls should work. For example `.../[one,two][red,blue]fish` should equate to `one/red/fish`, `one/blue/fish`, `two/red/fish`, `two/blue/fish`.  
+
+Nested multicalls are not yet supported (e.g. `.../[one[red,blue],two['green','yellow']]fish` will not work at the moment).  
 
 ## REST Compatibility
 

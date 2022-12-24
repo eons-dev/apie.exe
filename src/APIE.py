@@ -50,22 +50,17 @@ class APIE(eons.Executor):
 	def RegisterAllClasses(this):
 		super().RegisterAllClasses()
 
-	def ParseSyntax(this, endpoint):
-		pre = "",
-		main = ""
-		if (endpoint.startswith('(')):
-
 
 	# Acquire and run the given endpoint with the given request.
 	def ProcessEndpoint(this, endpointName, request, **kwargs):
 
 		# Parse Endpoint syntax.
-		# "(..., ...)something" => multi(domain=[..., ...], next="something")
-		if (endpointName.startswith('(')):
+		# "[..., ...]something" => multi(domain=[..., ...], next="something")
+		if (endpointName.startswith('[')):
 			if ('domain' in kwargs):
 				raise APIError(f"Domain already exists in multicall; domain={kwargs['domain']}; multicall={endpointName}")
 
-			domainStrEndPos = endpointName.find(')')+1
+			domainStrEndPos = endpointName.find(']')+1
 			domainStr = endpointName[:domainStrEndPos]
 			if ('next' in kwargs):
 				kwargs['next'] = [endpointName[domainStrEndPos:]].extend(kwargs['next'])
@@ -79,7 +74,7 @@ class APIE(eons.Executor):
 
 		if (endpointName in this.cachedFunctors):
 			return this.cachedFunctors[endpointName](executor=this, request=request, **kwargs)
-		
+
 		endpoint = this.GetRegistered(endpointName, "api")
 		this.cachedFunctors.update({endpointName: endpoint})
 		return endpoint(executor=this, request=request, **kwargs)
