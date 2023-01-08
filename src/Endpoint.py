@@ -73,7 +73,7 @@ class Endpoint(Functor):
 		# What is returned after Call()
 		this.response = eons.util.DotDict()
 		this.response.content = eons.util.DotDict()
-
+		this.ResetResponse()
 
 # Please override this for each of your Endpoints.
 	# RETURN a string that tells the user how to call *this.
@@ -137,7 +137,7 @@ LOL! Look at you: needing help. Pathetic.
 					logging.info(f"Clobbering content.string ({this.response.content.string})")
 
 				this.response.content.data.update({'cacheable': this.cacheable})
-				this.response.content.string = jsonpickle.encode(this.response.content.data)
+				this.response.content.string = jsonpickle.encode(dict(this.response.content.data))
 
 		if ('Content-Type' not in this.response.headers):
 			this.response.headers.update({'Content-Type': this.mime})

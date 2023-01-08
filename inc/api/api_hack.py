@@ -33,8 +33,17 @@ The quieter you are, the more you are able to hear.
 		next = this.next.pop(0)
 		endpoint = this.executor.GetRegistered(next, "api")
 		originalFetchFrom = endpoint.fetchFrom
-		endpoint.fetchFrom = ['percursor'].extend(endpoint.fetchFrom.remove('precursor'))
-		this.executor.cachedEndpoints.update({next: endpoint})
+
+		# Move precursor to the top, so that we can make the next Endpoint Fetch our hacked values.
+		try:
+			endpoint.fetchFrom.remove('precursor')
+		except:
+			# Ignore key errors, etc.
+			pass
+		endpoint.fetchFrom = ['precursor'].extend(endpoint.fetchFrom)
+
+		this.executor.cachedFunctors.update({next: endpoint})
+
 		ret = None
 		try:
 			ret = this.executor.ProcessEndpoint(next, this.request, precursor=this, next=this.next)

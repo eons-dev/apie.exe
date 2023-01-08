@@ -10,8 +10,11 @@ class noauth(apie.Authenticator):
 
 	# Yep!
 	def Authenticate(this):
-		if ('authorization' not in this.request or this.request.authorization is None):
+		auth = None
+		if (getattr(this.request, 'authorization')):
+			auth = this.request.authorization
+		if (auth is None):
 			logging.debug(f"Allowing request for {this.path} without authentication")
 		else:
-			logging.debug(f"Allowing request for {this.path} with authentication: {this.request.authorization}")
+			logging.debug(f"Allowing request for {this.path} with authentication: {auth}")
 		return True
