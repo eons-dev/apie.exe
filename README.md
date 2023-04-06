@@ -17,7 +17,7 @@ To run an `apie` server simply:
 apie
 ```
 
-You can specify custom interface and port like so:
+APIE will bind to port 80 by default, which is not typically allowed for non-root users. In order to bypass this, you must use a different port. You can specify custom interface and port from the command line like so:
 ```shell
 apie --host localhost --port 8080
 ```
@@ -30,7 +30,17 @@ You may also specify:
 
 ### apie.json
 
-APIE will look for a file called "apie.json" in the directory it is launched from. If such is found, the configuration values from it will be read and processed in accordance with the eons library. For example, `apie --clean_start False` is the same as `apie` with an apie.json containing `{"clean_start": false}`
+APIE will look for a file called "apie.json" in the directory it is launched from. If such is found, the configuration values from it will be read and processed in accordance with the eons library. For example, `apie --clean_start False` is the same as `apie` with an apie.json containing `{"clean_start": false}`. Note, command line variables will override configuration file variables (which override environment variables).
+
+Here is an example `apie.json`:
+```json
+{
+    "verbosity": 3,
+    "no_repo": true,
+    "clean_start": false,
+    "port": 8080
+}
+```
 
 
 ### Parallelism
