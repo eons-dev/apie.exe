@@ -38,6 +38,7 @@ class APIE(eons.Executor):
 		this.lastEndpoint = None
 
 		this.defaultConfigFile = "apie.json"
+		this.defaultPackageType = "api"
 
 	# Override of eons.Executor method. See that class for details
 	def RegisterIncludedClasses(this):
