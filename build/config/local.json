@@ -1,4 +1,6 @@
 {
+  "name": "apie",
+  "type": "exe",
   "next": [
     {
       "build" : "py_package",
