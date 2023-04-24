@@ -18,7 +18,7 @@ class APIE(eons.Executor):
 		this.optionalKWArgs['host'] = "0.0.0.0"
 		this.optionalKWArgs['port'] = 80
 		this.optionalKWArgs['dev'] = False
-		this.optionalKWArgs['clean_start'] = True
+		this.optionalKWArgs['clean_start'] = False
 		this.optionalKWArgs['authenticator'] = "noauth"
 		this.optionalKWArgs['preprocessor'] = ""
 
