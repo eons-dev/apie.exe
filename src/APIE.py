@@ -10,8 +10,8 @@ from .Exceptions import *
 
 class APIE(eons.Executor):
 
-	def __init__(this):
-		super().__init__(name="Application Program Interface with Eons", descriptionStr="A readily extensible take on APIs.")
+	def __init__(this, name="Application Program Interface with Eons", description="A readily extensible take on APIs."):
+		super().__init__(name, description)
 
 		# this.RegisterDirectory("ebbs")
 

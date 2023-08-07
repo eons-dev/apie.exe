@@ -20,7 +20,10 @@
           {
             "build" : "py_install",
             "build_in" : "../",
-            "config" : {}
+            "config" : {
+              "name": "apie",
+              "type":"exe"
+            }
           }
         ]
       }
