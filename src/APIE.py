@@ -3,24 +3,31 @@ import logging
 import shutil
 import traceback
 import eons
+import elderlang
+import eventlet
 from flask import Flask, request
-from waitress import serve
+from flask_socketio import SocketIO
 from pathlib import Path
 from .Exceptions import *
 
-class APIE(eons.Executor):
+class APIE(elderlang.Executor):
 
 	def __init__(this, name="Application Program Interface with Eons", description="A readily extensible take on APIs."):
 		super().__init__(name, description)
 
 		# this.RegisterDirectory("ebbs")
 
-		this.optionalKWArgs['host'] = "0.0.0.0"
-		this.optionalKWArgs['port'] = 80
-		this.optionalKWArgs['dev'] = False
-		this.optionalKWArgs['clean_start'] = False
-		this.optionalKWArgs['authenticator'] = "noauth"
-		this.optionalKWArgs['preprocessor'] = ""
+		this.arg.kw.optional['host'] = "0.0.0.0"
+		this.arg.kw.optional['port'] = 80
+		this.arg.kw.optional['external_address'] = "localhost"
+		this.arg.kw.optional['external_port'] = None
+		this.arg.kw.optional['external_scheme'] = "http"
+		this.arg.kw.optional['dev'] = False
+		this.arg.kw.optional['clean_start'] = False
+		this.arg.kw.optional['authenticator'] = "noauth"
+		this.arg.kw.optional['preprocessor'] = ""
+		this.arg.kw.optional['socket_path'] = "socket.io"
+		this.arg.kw.optional['cors_allowed_origins'] = "*"
 
 		this.supportedMethods = [
 			'POST',
@@ -33,6 +40,7 @@ class APIE(eons.Executor):
 		# Used in Function()
 		this.auth = None
 		this.flask = None
+		this.socket = None
 
 		# *this is single-threaded. If we want parallel processing, we can create replicas.
 		this.lastEndpoint = None
@@ -94,9 +102,31 @@ class APIE(eons.Executor):
 		if (this.clean_start):
 			this.Clean()
 
+		if (this.external_port is None):
+			this.external_port = this.port
+
 		this.auth = this.GetRegistered(this.authenticator, "auth")
 
 		this.flask = Flask(this.name)
+		this.socket = SocketIO(
+			this.flask,
+			path=this.socket_path,
+			cors_allowed_origins=this.cors_allowed_origins,
+			ngineio_logger=True,
+			ping_timeout=5,
+			ping_interval=5
+		)
+
+
+		@this.socket.on('connect')
+		def handle_connect():
+			logging.info(f"Client connected: {request.sid}")
+			emit('status', {'message': 'Connected to WebSocket'})
+
+		@this.socket.on('disconnect')
+		def handle_disconnect():
+			logging.info(f"Client disconnected: {request.sid}")
+
 
 		@this.flask.route("/", defaults={"path": ""}, methods = this.supportedMethods)
 		def root(path):
@@ -114,7 +144,21 @@ class APIE(eons.Executor):
 						path = path[:-1]
 					endpoints.extend(path.split('/'))
 					this.lastEndpoint = None
-					logging.debug(f"Responding to request for {path}; request: {request}")
+					
+					logging.debug(f"Responding to {request} request for {path}...")
+					try:
+						logging.debug(f"...with files: {request.files}")
+					except:
+						pass
+					try:
+						logging.debug(f"...with forms: {request.form}")
+					except:
+						pass
+					try:
+						logging.debug(f"...with json: {request.json}")
+					except:
+						pass
+					
 					response = this.ProcessEndpoint(endpoints.pop(0), request, next=endpoints)
 					logging.debug(f"Got headers: {response.headers}")
 					logging.debug(f"Got response: {response}")
@@ -131,17 +175,25 @@ class APIE(eons.Executor):
 						pass
 				return this.HandleBadRequest(request, error) #fine. We'll do it ourselves.
 
-		options = {}
-		options['app'] = this.flask
-		options['host'] = this.host
-		options['port'] = this.port
+		# options = {}
+		# options['app'] = this.flask
+		# options['host'] = this.host
+		# options['port'] = this.port
 
 		# Only applicable if using this.flask.run(**options)
 		# if (this.args.verbose > 0):
 		#	 options['debug'] = True
 		#	 options['use_reloader'] = False
 
-		serve(**options)
+		# For Waitress (lacks websocket support)
+		# serve(**options)
+
+		# For Flask dev server
+		# this.socket.init_app(**options)
+
+		# For eventlet.
+		# Doesn't use options
+		eventlet.wsgi.server(eventlet.listen((this.host, this.port)), this.flask)
 
 
 	# Remove possibly stale modules.
@@ -150,3 +202,8 @@ class APIE(eons.Executor):
 		if (repoPath.exists()):
 			shutil.rmtree(this.repo['store'])
 		repoPath.mkdir(parents=True, exist_ok=True)
+
+
+	# Helper function to get the URL for the web socket.
+	def GetSocketURL(this):
+		return f"ws://{this.external_address}:{this.external_port}/{this.socket_path}"

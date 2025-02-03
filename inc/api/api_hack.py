@@ -49,7 +49,7 @@ The quieter you are, the more you are able to hear.
 			ret = this.executor.ProcessEndpoint(next, this.request, precursor=this, next=this.next)
 		except Exception as e:
 			ret = None
-			this.response.content.string = f"Hack failed: {str(e)}"
+			this.response.content.message = f"Hack failed: {str(e)}"
 			this.response.code = 401
 		endpoint.fetchFrom = originalFetchFrom
 		if (ret is not None):

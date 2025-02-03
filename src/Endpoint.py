@@ -22,7 +22,8 @@ class Endpoint(Functor):
 	def __init__(this, name=eons.INVALID_NAME()):
 		super().__init__(name)
 
-		this.enableRollback = False
+		this.feature.rollback = False
+		this.feature.autoReturn = False
 
 		# Internal logic; used when calling 'help', etc.
 		this.bypassCall = False
@@ -65,7 +66,7 @@ class Endpoint(Functor):
 		# When querying this, it is best to use the IsCachable() method.
 		this.cacheable = False
 
-		# If compiling data, from this.response.content.data for example, the response.content.string of *this will be overwritten.
+		# If compiling data, from this.response.content.data for example, the response.content.message of *this will be overwritten.
 		# You can override this behavior and force the compiled data to be lost by setting clobberContent to False.
 		# This is useful if you are forwarding json requests and don't want to parse then recompile the content.
 		this.clobberContent = True
@@ -75,7 +76,7 @@ class Endpoint(Functor):
 		this.response.content = eons.util.DotDict()
 		this.ResetResponse()
 
-# Please override this for each of your Endpoints.
+	# Please override this for each of your Endpoints.
 	# RETURN a string that tells the user how to call *this.
 	# It is recommended to return a static string, without Fetching anything.
 	#
@@ -125,7 +126,7 @@ LOL! Look at you: needing help. Pathetic.
 		this.response.code = 200
 		this.response.headers = {}
 		this.response.content.data = {}
-		this.response.content.string = ""
+		this.response.content.message = ""
 
 
 	# Called right before *this returns.
@@ -133,11 +134,11 @@ LOL! Look at you: needing help. Pathetic.
 	def ProcessResponse(this):
 		if (this.clobberContent):
 			if(this.mime == 'application/json'):
-				if (len(this.response.content.string)):
-					logging.info(f"Clobbering content.string ({this.response.content.string})")
+				if (len(this.response.content.message)):
+					logging.info(f"Clobbering content.message ({this.response.content.message})")
 
 				this.response.content.data.update({'cacheable': this.cacheable})
-				this.response.content.string = jsonpickle.encode(dict(this.response.content.data))
+				this.response.content.message = jsonpickle.encode(dict(this.response.content.data))
 
 		if ('Content-Type' not in this.response.headers):
 			this.response.headers.update({'Content-Type': this.mime})
@@ -149,10 +150,10 @@ LOL! Look at you: needing help. Pathetic.
 				pass
 
 		return Response(
-			response = this.response.content.string,
+			response = this.response.content.message,
 			status = this.response.code,
 			headers = this.response.headers.items(),
-			mimetype = this.mime, #This one is okay, I guess???
+			mimetype = str(this.mime), #This one is okay, I guess???
 			content_type = None, #why is this here, we set it in the header. This is a problem in Flask.
 			direct_passthrough = True # For speed??
 		)

@@ -16,12 +16,14 @@ class Functor(eons.Functor):
 
 		this.enableRollback = False
 
-		# Default places to Fetch from.
-		# Add to this list when extending Fetch().
-		# Remove from this list to restrict Fetching behavior.
-		# Reorder this list to make Fetch more efficient for your use case.
-		# Also see FetchWith and FetchWithout for ease-of-use methods.
-		this.fetchFrom = [
+		# See eons/Functor for details on Fetch mechanics.
+		this.fetch.possibilities.extend([
+			'request_args',
+			'request_form',
+			'request_json',
+			'request_files',
+		])
+		this.fetch.use = [
 			'this',
 			'args',
 			'precursor',
