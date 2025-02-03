@@ -173,7 +173,7 @@ LOL! Look at you: needing help. Pathetic.
 		return this.ProcessResponse()
 
 
-	#### SPECIALIZED OVERRIDES. IGNORE THESE ####
+	#### SPECIALIZED OVERRIDES. I-NORE THESE ####
 
 	# API compatibility shim
 	def DidFunctionSucceed(this):
